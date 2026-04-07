@@ -3,6 +3,7 @@ const cors = require('cors');
 const path = require('path');
 const { init } = require('./store');
 const apiRoutes = require('./routes/api');
+const orefPoller = require('./oref-poller');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -36,6 +37,7 @@ app.get('/trouble/:memberId', (req, res) => {
 init().then(() => {
   app.listen(PORT, () => {
     console.log(`Safe Circle running on http://localhost:${PORT}`);
+    orefPoller.start();
   });
 }).catch((err) => {
   console.error('Failed to initialize database:', err);

@@ -78,8 +78,12 @@
         <h2>Members</h2>
         <div class="row">
           <input id="member-name" placeholder="Name *" style="flex:2" />
-          <input id="member-phone" placeholder="Phone (optional)" style="flex:1.5" />
-          <input id="member-email" placeholder="Email (optional)" style="flex:2" />
+          <input id="member-area" list="cities-list" placeholder="Area (for auto-alert)" style="flex:2" />
+          <datalist id="cities-list"></datalist>
+        </div>
+        <div class="row">
+          <input id="member-phone" placeholder="Phone (optional)" style="flex:1" />
+          <input id="member-email" placeholder="Email (optional)" style="flex:1" />
           <button class="btn-add" onclick="addMember()">Add</button>
         </div>
         <div id="member-list"></div>
@@ -145,7 +149,7 @@
         return;
       }
       container.innerHTML = members.map(m => {
-        const details = [m.phone, m.email].filter(Boolean).join(' · ');
+        const details = [m.area, m.phone, m.email].filter(Boolean).join(' · ');
         return `<div class="member-item">
           <div>
             <span class="member-name">${m.name}</span>
@@ -161,14 +165,16 @@
 
     async function addMember() {
       const name = document.getElementById('member-name').value.trim();
+      const area = document.getElementById('member-area').value.trim();
       const phone = document.getElementById('member-phone').value.trim();
       const email = document.getElementById('member-email').value.trim();
       if (!name) return;
       await fetch(`${API}/circles/${currentCircle}/members`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, phone, email }),
+        body: JSON.stringify({ name, area, phone, email }),
       });
       document.getElementById('member-name').value = '';
+      document.getElementById('member-area').value = '';
       document.getElementById('member-phone').value = '';
       document.getElementById('member-email').value = '';
       loadMembers();
@@ -257,8 +263,23 @@
       pollStatus();
     }
 
+    // Load cities for area autocomplete
+    async function loadCities() {
+      try {
+        const res = await fetch('/cities.json');
+        const cities = await res.json();
+        const datalist = document.getElementById('cities-list');
+        cities.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.label;
+          datalist.appendChild(opt);
+        });
+      } catch (e) { console.error('Failed to load cities'); }
+    }
+
     // Init
     loadCircles();
+    loadCities();
   </script>
 </body>
 </html>

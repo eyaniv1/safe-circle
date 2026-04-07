@@ -38,6 +38,10 @@ async function init() {
       PRIMARY KEY (event_id, member_id)
     );
   `);
+
+  // Migrations
+  try { await pool.query(`ALTER TABLE members ADD COLUMN area TEXT DEFAULT ''`); } catch (e) { /* exists */ }
+
   console.log('Database tables ready');
 }
 

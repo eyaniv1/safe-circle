@@ -36,7 +36,7 @@ router.get('/circles/:circleId/members', async (req, res) => {
 });
 
 router.post('/circles/:circleId/members', async (req, res) => {
-  const { name, email, phone } = req.body;
+  const { name, email, phone, area } = req.body;
   if (!name) return res.status(400).json({ error: 'Name required' });
 
   const circle = await pool.query('SELECT id FROM circles WHERE id = $1', [req.params.circleId]);
@@ -44,21 +44,21 @@ router.post('/circles/:circleId/members', async (req, res) => {
 
   const id = uuidv4();
   const { rows } = await pool.query(
-    'INSERT INTO members (id, name, email, phone, circle_id) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-    [id, name, email || '', phone || '', req.params.circleId]
+    'INSERT INTO members (id, name, email, phone, area, circle_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+    [id, name, email || '', phone || '', area || '', req.params.circleId]
   );
   res.status(201).json(rows[0]);
 });
 
 router.put('/members/:id', async (req, res) => {
-  const { name, email, phone } = req.body;
+  const { name, email, phone, area } = req.body;
   const member = await pool.query('SELECT * FROM members WHERE id = $1', [req.params.id]);
   if (member.rows.length === 0) return res.status(404).json({ error: 'Member not found' });
 
   const m = member.rows[0];
   const { rows } = await pool.query(
-    'UPDATE members SET name = $1, email = $2, phone = $3 WHERE id = $4 RETURNING *',
-    [name || m.name, email ?? m.email, phone ?? m.phone, req.params.id]
+    'UPDATE members SET name = $1, email = $2, phone = $3, area = $4 WHERE id = $5 RETURNING *',
+    [name || m.name, email ?? m.email, phone ?? m.phone, area ?? m.area, req.params.id]
   );
   res.json(rows[0]);
 });
@@ -66,6 +66,14 @@ router.put('/members/:id', async (req, res) => {
 router.delete('/members/:id', async (req, res) => {
   await pool.query('DELETE FROM members WHERE id = $1', [req.params.id]);
   res.json({ ok: true });
+});
+
+// Get aggregated areas for a circle
+router.get('/circles/:circleId/areas', async (req, res) => {
+  const { rows } = await pool.query(
+    "SELECT DISTINCT area FROM members WHERE circle_id = $1 AND area != ''", [req.params.circleId]
+  );
+  res.json(rows.map(r => r.area));
 });
 
 // --- Events (alert check-ins) ---
