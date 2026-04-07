@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const { init } = require('./store');
 const apiRoutes = require('./routes/api');
 
 const app = express();
@@ -32,6 +33,11 @@ app.get('/trouble/:memberId', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/trouble.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`Safe Circle running on http://localhost:${PORT}`);
+init().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Safe Circle running on http://localhost:${PORT}`);
+  });
+}).catch((err) => {
+  console.error('Failed to initialize database:', err);
+  process.exit(1);
 });

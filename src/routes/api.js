@@ -1,108 +1,132 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
-const { stmts } = require('../store');
+const { pool } = require('../store');
 
 const router = express.Router();
 
 // --- Circles ---
 
-router.get('/circles', (req, res) => {
-  res.json(stmts.getCircles.all());
+router.get('/circles', async (req, res) => {
+  const { rows } = await pool.query('SELECT * FROM circles ORDER BY created_at');
+  res.json(rows);
 });
 
-router.post('/circles', (req, res) => {
+router.post('/circles', async (req, res) => {
   const { name } = req.body;
   if (!name) return res.status(400).json({ error: 'Name required' });
   const id = uuidv4();
-  const createdAt = new Date().toISOString();
-  stmts.insertCircle.run(id, name, createdAt);
-  res.status(201).json({ id, name, createdAt });
+  const { rows } = await pool.query(
+    'INSERT INTO circles (id, name) VALUES ($1, $2) RETURNING *', [id, name]
+  );
+  res.status(201).json(rows[0]);
 });
 
-router.delete('/circles/:id', (req, res) => {
-  const circleId = req.params.id;
-  stmts.deleteResponsesByCircleEvents.run(circleId);
-  stmts.deleteEventsByCircle.run(circleId);
-  stmts.deleteMembersByCircle.run(circleId);
-  stmts.deleteCircle.run(circleId);
+router.delete('/circles/:id', async (req, res) => {
+  await pool.query('DELETE FROM circles WHERE id = $1', [req.params.id]);
   res.json({ ok: true });
 });
 
 // --- Members ---
 
-router.get('/circles/:circleId/members', (req, res) => {
-  res.json(stmts.getMembers.all(req.params.circleId));
+router.get('/circles/:circleId/members', async (req, res) => {
+  const { rows } = await pool.query(
+    'SELECT * FROM members WHERE circle_id = $1 ORDER BY created_at', [req.params.circleId]
+  );
+  res.json(rows);
 });
 
-router.post('/circles/:circleId/members', (req, res) => {
+router.post('/circles/:circleId/members', async (req, res) => {
   const { name, email, phone } = req.body;
   if (!name) return res.status(400).json({ error: 'Name required' });
-  const circle = stmts.getCircle.get(req.params.circleId);
-  if (!circle) return res.status(404).json({ error: 'Circle not found' });
+
+  const circle = await pool.query('SELECT id FROM circles WHERE id = $1', [req.params.circleId]);
+  if (circle.rows.length === 0) return res.status(404).json({ error: 'Circle not found' });
 
   const id = uuidv4();
-  const createdAt = new Date().toISOString();
-  stmts.insertMember.run(id, name, email || '', phone || '', req.params.circleId, createdAt);
-  res.status(201).json({ id, name, email: email || '', phone: phone || '', circleId: req.params.circleId, createdAt });
+  const { rows } = await pool.query(
+    'INSERT INTO members (id, name, email, phone, circle_id) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+    [id, name, email || '', phone || '', req.params.circleId]
+  );
+  res.status(201).json(rows[0]);
 });
 
-router.put('/members/:id', (req, res) => {
+router.put('/members/:id', async (req, res) => {
   const { name, email, phone } = req.body;
-  const member = stmts.getMember.get(req.params.id);
-  if (!member) return res.status(404).json({ error: 'Member not found' });
-  stmts.updateMember.run(name || member.name, email ?? member.email, phone ?? member.phone, req.params.id);
-  res.json({ ...member, name: name || member.name, email: email ?? member.email, phone: phone ?? member.phone });
+  const member = await pool.query('SELECT * FROM members WHERE id = $1', [req.params.id]);
+  if (member.rows.length === 0) return res.status(404).json({ error: 'Member not found' });
+
+  const m = member.rows[0];
+  const { rows } = await pool.query(
+    'UPDATE members SET name = $1, email = $2, phone = $3 WHERE id = $4 RETURNING *',
+    [name || m.name, email ?? m.email, phone ?? m.phone, req.params.id]
+  );
+  res.json(rows[0]);
 });
 
-router.delete('/members/:id', (req, res) => {
-  stmts.deleteResponsesByMember.run(req.params.id);
-  stmts.deleteMember.run(req.params.id);
+router.delete('/members/:id', async (req, res) => {
+  await pool.query('DELETE FROM members WHERE id = $1', [req.params.id]);
   res.json({ ok: true });
 });
 
 // --- Events (alert check-ins) ---
 
-router.get('/circles/:circleId/events', (req, res) => {
-  res.json(stmts.getEvents.all(req.params.circleId));
+router.get('/circles/:circleId/events', async (req, res) => {
+  const { rows } = await pool.query(
+    'SELECT * FROM events WHERE circle_id = $1 ORDER BY created_at DESC', [req.params.circleId]
+  );
+  res.json(rows);
 });
 
-// Start a new check-in event
-router.post('/circles/:circleId/events', (req, res) => {
-  const circle = stmts.getCircle.get(req.params.circleId);
-  if (!circle) return res.status(404).json({ error: 'Circle not found' });
+router.post('/circles/:circleId/events', async (req, res) => {
+  const circle = await pool.query('SELECT id FROM circles WHERE id = $1', [req.params.circleId]);
+  if (circle.rows.length === 0) return res.status(404).json({ error: 'Circle not found' });
 
-  // End any active events
-  stmts.endActiveEvents.run(new Date().toISOString(), req.params.circleId);
+  // End active events
+  await pool.query(
+    'UPDATE events SET active = false, ended_at = NOW() WHERE circle_id = $1 AND active = true',
+    [req.params.circleId]
+  );
 
   const id = uuidv4();
-  const createdAt = new Date().toISOString();
-  stmts.insertEvent.run(id, req.params.circleId, createdAt);
-  res.status(201).json({ id, circleId: req.params.circleId, active: 1, createdAt });
+  const { rows } = await pool.query(
+    'INSERT INTO events (id, circle_id) VALUES ($1, $2) RETURNING *', [id, req.params.circleId]
+  );
+  res.status(201).json(rows[0]);
 });
 
-// End an event
-router.post('/events/:id/end', (req, res) => {
-  const event = stmts.getEvent.get(req.params.id);
-  if (!event) return res.status(404).json({ error: 'Event not found' });
-  stmts.endEvent.run(new Date().toISOString(), req.params.id);
-  res.json({ ...event, active: 0, endedAt: new Date().toISOString() });
+router.post('/events/:id/end', async (req, res) => {
+  const { rows } = await pool.query(
+    'UPDATE events SET active = false, ended_at = NOW() WHERE id = $1 RETURNING *', [req.params.id]
+  );
+  if (rows.length === 0) return res.status(404).json({ error: 'Event not found' });
+  res.json(rows[0]);
 });
 
-// Get active event status (for dashboard polling)
-router.get('/circles/:circleId/status', (req, res) => {
+// Get active event status
+router.get('/circles/:circleId/status', async (req, res) => {
   const circleId = req.params.circleId;
-  const members = stmts.getMembers.all(circleId);
-  const activeEvent = stmts.getActiveEvent.get(circleId);
+  const members = await pool.query(
+    'SELECT * FROM members WHERE circle_id = $1 ORDER BY created_at', [circleId]
+  );
+  const activeEvent = await pool.query(
+    'SELECT * FROM events WHERE circle_id = $1 AND active = true LIMIT 1', [circleId]
+  );
 
-  if (!activeEvent) {
-    return res.json({ active: false, members: members.map((m) => ({ id: m.id, name: m.name })) });
+  if (activeEvent.rows.length === 0) {
+    return res.json({
+      active: false,
+      members: members.rows.map((m) => ({ id: m.id, name: m.name })),
+    });
   }
 
-  const responses = stmts.getResponses.all(activeEvent.id);
+  const event = activeEvent.rows[0];
+  const responses = await pool.query(
+    'SELECT * FROM responses WHERE event_id = $1', [event.id]
+  );
   const responseMap = {};
-  responses.forEach((r) => { responseMap[r.memberId] = r; });
+  responses.rows.forEach((r) => { responseMap[r.member_id] = r; });
 
-  const status = members.map((m) => {
+  const status = members.rows.map((m) => {
     const response = responseMap[m.id];
     return {
       id: m.id,
@@ -114,35 +138,43 @@ router.get('/circles/:circleId/status', (req, res) => {
 
   res.json({
     active: true,
-    eventId: activeEvent.id,
-    startedAt: activeEvent.createdAt,
+    eventId: event.id,
+    startedAt: event.created_at,
     members: status,
   });
 });
 
-// Get member info (for check-in page)
-router.get('/member-info/:memberId', (req, res) => {
-  const member = stmts.getMember.get(req.params.memberId);
-  if (!member) return res.status(404).json({ error: 'Member not found' });
-  res.json({ id: member.id, name: member.name, circleId: member.circleId });
+// Get member info
+router.get('/member-info/:memberId', async (req, res) => {
+  const { rows } = await pool.query('SELECT * FROM members WHERE id = $1', [req.params.memberId]);
+  if (rows.length === 0) return res.status(404).json({ error: 'Member not found' });
+  res.json({ id: rows[0].id, name: rows[0].name, circleId: rows[0].circle_id });
 });
 
-// Check in (API endpoint for fetch-based check-in)
-router.post('/checkin/:memberId', (req, res) => {
+// Check in
+router.post('/checkin/:memberId', async (req, res) => {
   const { status } = req.body;
   if (!['ok', 'trouble'].includes(status)) {
     return res.status(400).json({ error: 'Status must be ok or trouble' });
   }
 
-  const member = stmts.getMember.get(req.params.memberId);
-  if (!member) return res.status(404).json({ error: 'Member not found' });
+  const member = await pool.query('SELECT * FROM members WHERE id = $1', [req.params.memberId]);
+  if (member.rows.length === 0) return res.status(404).json({ error: 'Member not found' });
 
-  const activeEvent = stmts.getActiveEvent.get(member.circleId);
-  if (!activeEvent) {
+  const m = member.rows[0];
+  const activeEvent = await pool.query(
+    'SELECT * FROM events WHERE circle_id = $1 AND active = true LIMIT 1', [m.circle_id]
+  );
+  if (activeEvent.rows.length === 0) {
     return res.status(400).json({ error: 'No active check-in event' });
   }
 
-  stmts.upsertResponse.run(activeEvent.id, member.id, status, new Date().toISOString());
+  await pool.query(
+    `INSERT INTO responses (event_id, member_id, status, time)
+     VALUES ($1, $2, $3, NOW())
+     ON CONFLICT (event_id, member_id) DO UPDATE SET status = $3, time = NOW()`,
+    [activeEvent.rows[0].id, m.id, status]
+  );
   res.json({ ok: true, status });
 });
 
