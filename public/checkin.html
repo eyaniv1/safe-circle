@@ -8,18 +8,18 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="theme-color" content="#1a1a2e" />
   <title>Safe Circle</title>
-  <link rel="manifest" href="/manifest.json" />
   <link rel="icon" href="/icons/icon.svg" />
   <link rel="apple-touch-icon" href="/icons/icon.svg" />
+  <!-- No manifest here — we don't want "Add to Home Screen" to redirect to dashboard -->
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #eee; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
-    .name { font-size: 18px; color: #888; margin-bottom: 8px; }
+    .name { font-size: 20px; color: #aaa; margin-bottom: 4px; }
     h1 { font-size: 22px; margin-bottom: 30px; text-align: center; }
     h1 span { color: #00d26a; }
 
     .buttons { display: flex; gap: 20px; width: 100%; max-width: 400px; }
-    .btn { flex: 1; padding: 0; border: none; border-radius: 20px; font-size: 22px; font-weight: 700; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 180px; transition: transform 0.1s; }
+    .btn { flex: 1; padding: 0; border: none; border-radius: 20px; font-size: 22px; font-weight: 700; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 180px; transition: transform 0.1s; text-decoration: none; }
     .btn:active { transform: scale(0.95); }
     .btn-ok { background: #00d26a; color: #000; }
     .btn-trouble { background: #e74c3c; color: #fff; }
@@ -35,8 +35,19 @@
     .no-event { text-align: center; color: #666; font-size: 16px; }
     .no-event .icon { font-size: 48px; margin-bottom: 12px; }
 
-    .shortcut-info { margin-top: 40px; background: #16213e; border-radius: 12px; padding: 16px; max-width: 400px; width: 100%; font-size: 13px; color: #888; line-height: 1.6; }
-    .shortcut-info strong { color: #ccc; }
+    .shortcuts { margin-top: 40px; background: #16213e; border-radius: 12px; padding: 16px; max-width: 400px; width: 100%; font-size: 14px; color: #aaa; line-height: 1.8; }
+    .shortcuts h3 { color: #fff; font-size: 15px; margin-bottom: 10px; }
+    .shortcut-link { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; text-decoration: none; color: inherit; }
+    .shortcut-link.ok-link { background: #0a3d1e; border: 1px solid #00d26a; }
+    .shortcut-link.trouble-link { background: #3d0a0a; border: 1px solid #e74c3c; }
+    .shortcut-link .link-icon { font-size: 24px; }
+    .shortcut-link .link-text { flex: 1; }
+    .shortcut-link .link-label { font-weight: 700; color: #fff; }
+    .shortcut-link .link-url { font-size: 11px; color: #666; word-break: break-all; }
+    .shortcut-link .copy-btn { background: #333; color: #fff; border: none; padding: 6px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; }
+
+    .setup-steps { margin-top: 12px; font-size: 13px; color: #666; line-height: 1.6; }
+    .setup-steps strong { color: #aaa; }
   </style>
 </head>
 <body>
@@ -74,18 +85,51 @@
       <div style="margin-top:8px">You'll see buttons here during an alert.</div>
     </div>
 
-    <div class="shortcut-info" id="shortcut-info" style="display:none">
-      <strong>One-tap shortcut:</strong><br />
-      Add this page to your home screen for quick access.<br />
-      <strong>iPhone:</strong> Tap Share → Add to Home Screen<br />
-      <strong>Android:</strong> Tap ⋮ menu → Add to Home Screen
+    <!-- Shortcut setup -->
+    <div class="shortcuts" id="shortcuts" style="display:none">
+      <h3>Set up one-tap shortcuts</h3>
+      <p style="margin-bottom:12px;color:#888">Save these two links to your home screen for instant check-in:</p>
+
+      <div class="shortcut-link ok-link" id="ok-shortcut">
+        <span class="link-icon">✅</span>
+        <div class="link-text">
+          <div class="link-label">I'm OK</div>
+          <div class="link-url" id="ok-url"></div>
+        </div>
+        <button class="copy-btn" onclick="copyUrl('ok')">Copy</button>
+      </div>
+
+      <div class="shortcut-link trouble-link" id="trouble-shortcut">
+        <span class="link-icon">🔴</span>
+        <div class="link-text">
+          <div class="link-label">Trouble</div>
+          <div class="link-url" id="trouble-url"></div>
+        </div>
+        <button class="copy-btn" onclick="copyUrl('trouble')">Copy</button>
+      </div>
+
+      <div class="setup-steps">
+        <strong>How to add to home screen:</strong><br />
+        1. Tap "Copy" on a link above<br />
+        2. Open it in your browser<br />
+        3. <strong>iPhone:</strong> Tap Share (⬆) → "Add to Home Screen"<br />
+        4. <strong>Android:</strong> Tap ⋮ menu → "Add to Home Screen"<br />
+        5. Repeat for the other link<br /><br />
+        You'll have two icons — one green, one red. One tap = check-in done.
+      </div>
     </div>
   </div>
 
   <script>
     const memberId = location.pathname.split('/checkin/')[1];
     const API = '/api';
-    let hasActiveEvent = false;
+    const baseUrl = location.origin;
+
+    // Set shortcut URLs
+    const okUrl = `${baseUrl}/ok/${memberId}`;
+    const troubleUrl = `${baseUrl}/trouble/${memberId}`;
+    document.getElementById('ok-url').textContent = okUrl;
+    document.getElementById('trouble-url').textContent = troubleUrl;
 
     // Check if redirected from one-tap shortcut
     const params = new URLSearchParams(location.search);
@@ -93,24 +137,8 @@
       showConfirmation(params.get('confirmed'));
     }
 
-    async function loadStatus() {
-      try {
-        const res = await fetch(`${API}/checkin/${memberId}`, { method: 'GET' });
-        // We don't have a GET endpoint for member info, so use the URL-based approach
-      } catch (e) {}
-
-      // Get member info by checking the page loaded correctly
-      document.getElementById('loading').style.display = 'none';
-
-      if (!params.get('confirmed')) {
-        // Poll for active event
-        checkEvent();
-      }
-    }
-
     async function checkEvent() {
       try {
-        // Fetch member info to get circle ID
         const infoRes = await fetch(`${API}/member-info/${memberId}`);
         if (!infoRes.ok) {
           document.getElementById('loading').textContent = 'Member not found';
@@ -118,23 +146,25 @@
         }
         const info = await infoRes.json();
         document.getElementById('member-name').textContent = info.name;
+        document.getElementById('loading').style.display = 'none';
 
         const statusRes = await fetch(`${API}/circles/${info.circleId}/status`);
         const status = await statusRes.json();
 
         if (status.active) {
-          hasActiveEvent = true;
           const myStatus = status.members.find(m => m.id === memberId);
-          if (myStatus && myStatus.status !== 'unknown') {
+          if (myStatus && myStatus.status !== 'unknown' && !params.get('confirmed')) {
             showConfirmation(myStatus.status);
-          } else {
+          } else if (!document.getElementById('confirmed').classList.contains('show')) {
             showButtons();
           }
         } else {
-          document.getElementById('no-event').style.display = 'block';
-          document.getElementById('check-buttons').style.display = 'none';
+          if (!document.getElementById('confirmed').classList.contains('show')) {
+            document.getElementById('no-event').style.display = 'block';
+            document.getElementById('check-buttons').style.display = 'none';
+          }
         }
-        document.getElementById('shortcut-info').style.display = 'block';
+        document.getElementById('shortcuts').style.display = 'block';
       } catch (e) {
         document.getElementById('loading').textContent = 'Error loading status';
       }
@@ -174,11 +204,16 @@
       document.getElementById('confirmed-icon').textContent = status === 'ok' ? '✅' : '🔴';
       document.getElementById('confirmed-text').textContent = status === 'ok' ? "You're marked as OK" : 'Trouble reported';
       document.getElementById('confirmed-text').style.color = status === 'ok' ? '#00d26a' : '#e74c3c';
-      document.getElementById('shortcut-info').style.display = 'block';
     }
 
-    loadStatus();
-    // Auto-refresh every 5 seconds to detect new events
+    function copyUrl(type) {
+      const url = type === 'ok' ? okUrl : troubleUrl;
+      navigator.clipboard.writeText(url).then(() => {
+        alert(`${type === 'ok' ? 'OK' : 'Trouble'} link copied! Open it in your browser, then add to home screen.`);
+      });
+    }
+
+    checkEvent();
     setInterval(() => {
       if (!document.getElementById('confirmed').classList.contains('show')) {
         checkEvent();

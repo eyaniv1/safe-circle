@@ -148,7 +148,7 @@
         return `<div class="member-item">
           <span class="member-name">${m.name}</span>
           <div class="member-links">
-            <button class="btn-copy btn-sm" onclick="copyLink('${checkinUrl}')">Copy Link</button>
+            <button class="btn-copy btn-sm" onclick="shareLink('${m.id}', '${m.name}')">Send Setup Link</button>
             <button class="btn-danger btn-sm" onclick="removeMember('${m.id}')">X</button>
           </div>
         </div>`;
@@ -172,8 +172,15 @@
       loadMembers();
     }
 
-    function copyLink(url) {
-      navigator.clipboard.writeText(url).then(() => alert('Link copied! Send it to this person.'));
+    function shareLink(memberId, name) {
+      const baseUrl = location.origin;
+      const msg = `Safe Circle setup for ${name}:\n\nOpen this link to set up your check-in:\n${baseUrl}/checkin/${memberId}\n\nOr save these one-tap shortcuts to your home screen:\n✅ I'm OK: ${baseUrl}/ok/${memberId}\n🔴 Trouble: ${baseUrl}/trouble/${memberId}`;
+
+      if (navigator.share) {
+        navigator.share({ title: 'Safe Circle', text: msg }).catch(() => {});
+      } else {
+        navigator.clipboard.writeText(msg).then(() => alert('Setup message copied! Paste it in WhatsApp or SMS to this person.'));
+      }
     }
 
     // --- Events & Status ---
