@@ -77,7 +77,9 @@
       <div class="setup">
         <h2>Members</h2>
         <div class="row">
-          <input id="member-name" placeholder="Name" />
+          <input id="member-name" placeholder="Name *" style="flex:2" />
+          <input id="member-phone" placeholder="Phone (optional)" style="flex:1.5" />
+          <input id="member-email" placeholder="Email (optional)" style="flex:2" />
           <button class="btn-add" onclick="addMember()">Add</button>
         </div>
         <div id="member-list"></div>
@@ -143,10 +145,12 @@
         return;
       }
       container.innerHTML = members.map(m => {
-        const baseUrl = location.origin;
-        const checkinUrl = `${baseUrl}/checkin/${m.id}`;
+        const details = [m.phone, m.email].filter(Boolean).join(' · ');
         return `<div class="member-item">
-          <span class="member-name">${m.name}</span>
+          <div>
+            <span class="member-name">${m.name}</span>
+            ${details ? `<div style="font-size:11px;color:#666;margin-top:2px">${details}</div>` : ''}
+          </div>
           <div class="member-links">
             <button class="btn-copy btn-sm" onclick="shareLink('${m.id}', '${m.name}')">Send Setup Link</button>
             <button class="btn-danger btn-sm" onclick="removeMember('${m.id}')">X</button>
@@ -157,12 +161,16 @@
 
     async function addMember() {
       const name = document.getElementById('member-name').value.trim();
+      const phone = document.getElementById('member-phone').value.trim();
+      const email = document.getElementById('member-email').value.trim();
       if (!name) return;
       await fetch(`${API}/circles/${currentCircle}/members`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, phone, email }),
       });
       document.getElementById('member-name').value = '';
+      document.getElementById('member-phone').value = '';
+      document.getElementById('member-email').value = '';
       loadMembers();
     }
 
