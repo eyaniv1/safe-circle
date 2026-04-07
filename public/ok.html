@@ -13,14 +13,23 @@
   <link rel="apple-touch-icon" href="/icons/ok-180.png" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #0a3d1e; color: #fff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
-    .header { background: #00d26a; color: #000; width: 100%; text-align: center; padding: 24px 16px; }
-    .header .icon { font-size: 48px; }
-    .header .text { font-size: 24px; font-weight: 700; margin-top: 4px; }
-    .header .sub { font-size: 14px; opacity: 0.7; margin-top: 4px; }
-    .error { display: none; color: #fff; background: rgba(0,0,0,0.3); padding: 12px 20px; border-radius: 8px; margin-top: 12px; width: 90%; text-align: center; }
-    .circle-status { width: 100%; max-width: 500px; padding: 16px; }
-    .circle-status h3 { font-size: 14px; color: #888; margin-bottom: 10px; text-align: center; }
+    body { color: #fff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; transition: background 0.3s; }
+    body.state-ok { background: #0a3d1e; }
+    body.state-trouble { background: #2a0a0a; }
+    body.state-loading { background: #1a1a2e; }
+    .header { width: 100%; text-align: center; padding: 20px 16px; transition: background 0.3s; }
+    .header.ok { background: #00d26a; color: #000; }
+    .header.trouble { background: #e74c3c; color: #fff; }
+    .header.loading { background: #333; }
+    .header .icon { font-size: 40px; }
+    .header .text { font-size: 22px; font-weight: 700; margin-top: 4px; }
+    .header .sub { font-size: 13px; opacity: 0.7; margin-top: 4px; }
+    .change-btn { margin: 16px; padding: 14px 28px; border: none; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; transition: transform 0.1s; display: none; }
+    .change-btn:active { transform: scale(0.95); }
+    .change-btn.to-trouble { background: #e74c3c; color: #fff; }
+    .change-btn.to-ok { background: #00d26a; color: #000; }
+    .error { display: none; color: #fff; background: rgba(0,0,0,0.3); padding: 12px 20px; border-radius: 8px; margin: 12px; text-align: center; }
+    .circle-status { width: 100%; max-width: 500px; padding: 0 16px 16px; }
     .member-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; margin-bottom: 6px; }
     .member-row.ok { background: rgba(0,210,106,0.15); }
     .member-row.trouble { background: rgba(231,76,60,0.2); }
@@ -28,18 +37,19 @@
     .member-icon { font-size: 20px; }
     .member-name { flex: 1; font-weight: 600; font-size: 15px; }
     .member-time { font-size: 11px; color: #888; }
-    .summary { display: flex; justify-content: center; gap: 20px; padding: 12px; font-size: 15px; font-weight: 700; }
+    .summary { display: flex; justify-content: center; gap: 20px; padding: 8px 12px 12px; font-size: 15px; font-weight: 700; }
     .summary .s-ok { color: #00d26a; }
     .summary .s-trouble { color: #e74c3c; }
     .summary .s-missing { color: #666; }
   </style>
 </head>
-<body>
-  <div class="header">
-    <div class="icon">✅</div>
-    <div class="text">Sending OK...</div>
-    <div class="sub" id="status">Reporting your status</div>
+<body class="state-loading">
+  <div class="header loading" id="header">
+    <div class="icon" id="h-icon">⏳</div>
+    <div class="text" id="h-text">Sending...</div>
+    <div class="sub" id="h-sub">Reporting your status</div>
   </div>
+  <button class="change-btn" id="change-btn" onclick="toggleStatus()"></button>
   <div class="error" id="error"></div>
   <div class="circle-status" id="circle-status" style="display:none">
     <div class="summary" id="summary"></div>
@@ -49,26 +59,28 @@
   <script>
     const memberId = location.pathname.split('/ok/')[1];
     let circleId = null;
+    let currentStatus = 'ok';
 
-    async function report() {
+    async function report(status) {
       try {
         const res = await fetch(`/api/checkin/${memberId}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: 'ok' }),
+          body: JSON.stringify({ status }),
         });
         if (res.ok) {
-          document.querySelector('.text').textContent = "You're OK";
-          document.getElementById('status').textContent = '';
-          if (navigator.vibrate) navigator.vibrate(200);
-          await loadCircleInfo();
+          currentStatus = status;
+          updateUI();
+          if (navigator.vibrate) navigator.vibrate(status === 'ok' ? 200 : [200, 100, 200]);
+          if (!circleId) {
+            await loadCircleInfo();
+            setInterval(pollStatus, 3000);
+          }
           pollStatus();
-          setInterval(pollStatus, 3000);
         } else {
           const err = await res.json();
           if (err.error === 'No active check-in event') {
-            document.querySelector('.text').textContent = 'No active alert';
-            document.getElementById('status').textContent = 'No check-in is active right now';
+            setHeader('⚫', 'No active alert', 'No check-in is active right now', 'loading');
           } else {
             showError(err.error);
           }
@@ -76,6 +88,36 @@
       } catch (e) {
         showError('Network error. Check your connection.');
       }
+    }
+
+    function updateUI() {
+      if (currentStatus === 'ok') {
+        setHeader('✅', "You're OK", '', 'ok');
+        document.body.className = 'state-ok';
+        const btn = document.getElementById('change-btn');
+        btn.textContent = '🔴 Change to Trouble';
+        btn.className = 'change-btn to-trouble';
+        btn.style.display = 'block';
+      } else {
+        setHeader('🔴', 'Trouble Reported', 'Your circle has been notified', 'trouble');
+        document.body.className = 'state-trouble';
+        const btn = document.getElementById('change-btn');
+        btn.textContent = "✅ Change to I'm OK";
+        btn.className = 'change-btn to-ok';
+        btn.style.display = 'block';
+      }
+    }
+
+    function setHeader(icon, text, sub, cls) {
+      document.getElementById('h-icon').textContent = icon;
+      document.getElementById('h-text').textContent = text;
+      document.getElementById('h-sub').textContent = sub;
+      const header = document.getElementById('header');
+      header.className = 'header ' + cls;
+    }
+
+    function toggleStatus() {
+      report(currentStatus === 'ok' ? 'trouble' : 'ok');
     }
 
     async function loadCircleInfo() {
@@ -97,9 +139,7 @@
     }
 
     function renderStatus(members) {
-      const container = document.getElementById('circle-status');
-      container.style.display = 'block';
-
+      document.getElementById('circle-status').style.display = 'block';
       const ok = members.filter(m => m.status === 'ok');
       const trouble = members.filter(m => m.status === 'trouble');
       const unknown = members.filter(m => m.status === 'unknown');
@@ -122,13 +162,13 @@
     }
 
     function showError(msg) {
-      document.querySelector('.text').textContent = 'Error';
+      setHeader('❌', 'Error', '', 'loading');
       const el = document.getElementById('error');
       el.textContent = msg;
       el.style.display = 'block';
     }
 
-    report();
+    report('ok');
   </script>
 </body>
 </html>
