@@ -262,7 +262,12 @@
       container.innerHTML = members.map(m => {
         const details = [m.area, m.phone, m.email].filter(Boolean).join(' · ');
         const escapedName = m.name.replace(/'/g, "\\'");
-        return `<div class="member-item">
+        // Setup status indicators
+        const visited = m.setup_visited ? '✅' : '❌';
+        const okSet = m.ok_clicked ? '✅' : '❌';
+        const troubleSet = m.trouble_clicked ? '✅' : '❌';
+        const allReady = m.setup_visited && m.ok_clicked && m.trouble_clicked;
+        return `<div class="member-item" style="${allReady ? '' : 'border-left:3px solid #f39c12;'}">
           <div class="member-top">
             <span class="member-name">${m.name}</span>
             <div class="member-actions">
@@ -272,6 +277,9 @@
             </div>
           </div>
           ${details ? `<div class="member-details">${details}</div>` : ''}
+          <div class="member-details" style="margin-top:4px">
+            Setup: ${visited} Opened link &nbsp; ${okSet} OK shortcut &nbsp; ${troubleSet} Trouble shortcut
+          </div>
         </div>`;
       }).join('');
       // Store members for edit lookup

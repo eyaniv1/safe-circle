@@ -169,10 +169,12 @@ router.get('/circles/:circleId/status', async (req, res) => {
   });
 });
 
-// Get member info
+// Get member info (also marks setup page as visited)
 router.get('/member-info/:memberId', async (req, res) => {
   const { rows } = await pool.query('SELECT * FROM members WHERE id = $1', [req.params.memberId]);
   if (rows.length === 0) return res.status(404).json({ error: 'Member not found' });
+  // Mark as visited
+  await pool.query('UPDATE members SET setup_visited = true WHERE id = $1', [req.params.memberId]);
   res.json({ id: rows[0].id, name: rows[0].name, circleId: rows[0].circle_id });
 });
 
@@ -200,6 +202,11 @@ router.post('/checkin/:memberId', async (req, res) => {
      ON CONFLICT (event_id, member_id) DO UPDATE SET status = $3, time = NOW()`,
     [activeEvent.rows[0].id, m.id, status]
   );
+
+  // Track which shortcuts the member has used
+  const col = status === 'ok' ? 'ok_clicked' : 'trouble_clicked';
+  await pool.query(`UPDATE members SET ${col} = true WHERE id = $1`, [m.id]);
+
   res.json({ ok: true, status });
 });
 
