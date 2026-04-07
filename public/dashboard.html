@@ -2,118 +2,190 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>Safe Circle</title>
   <link rel="manifest" href="/manifest.json" />
   <link rel="icon" href="/icons/icon.svg" />
   <link rel="apple-touch-icon" href="/icons/icon.svg" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #eee; min-height: 100vh; }
-    .container { max-width: 600px; margin: 0 auto; padding: 16px; }
-    h1 { text-align: center; margin: 16px 0; font-size: 24px; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #eee; min-height: 100vh; padding-bottom: 40px; }
+    .container { max-width: 600px; margin: 0 auto; padding: 12px; }
+    h1 { text-align: center; margin: 12px 0; font-size: 22px; }
     h1 span { color: #00d26a; }
 
-    /* Setup panel */
-    .setup { background: #16213e; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
-    .setup h2 { font-size: 16px; margin-bottom: 12px; color: #aaa; }
-    .row { display: flex; gap: 8px; margin-bottom: 8px; }
-    .row input { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #333; background: #0f3460; color: #fff; font-size: 14px; }
-    .row input::placeholder { color: #666; }
-    button { padding: 10px 16px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .card { background: #16213e; border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+    .card h2 { font-size: 14px; color: #888; margin-bottom: 10px; }
+    .row { display: flex; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
+    input, select { padding: 10px; border-radius: 8px; border: 1px solid #333; background: #0f3460; color: #fff; font-size: 14px; min-width: 0; }
+    input::placeholder { color: #666; }
+    select { width: 100%; }
+    button { padding: 8px 14px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
     .btn-add { background: #00d26a; color: #000; }
-    .btn-alert { background: #e74c3c; color: #fff; font-size: 18px; width: 100%; padding: 16px; border-radius: 12px; margin: 12px 0; }
-    .btn-alert:hover { background: #c0392b; }
-    .btn-end { background: #f39c12; color: #000; font-size: 16px; width: 100%; padding: 14px; border-radius: 12px; margin: 12px 0; }
-    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .btn-edit { background: #3498db; color: #fff; }
     .btn-danger { background: #e74c3c; color: #fff; }
-    .btn-copy { background: #3498db; color: #fff; }
+    .btn-send { background: #3498db; color: #fff; }
+    .btn-alert { background: #e74c3c; color: #fff; font-size: 18px; width: 100%; padding: 16px; border-radius: 12px; margin: 8px 0; }
+    .btn-end { background: #f39c12; color: #000; font-size: 16px; width: 100%; padding: 14px; border-radius: 12px; margin: 8px 0; }
+
+    /* Circle header with edit/delete */
+    .circle-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .circle-header select { flex: 1; }
+    .circle-actions { display: flex; gap: 4px; }
 
     /* Member list */
-    .member-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #16213e; border-radius: 8px; margin-bottom: 6px; }
-    .member-name { font-weight: 600; }
-    .member-links { display: flex; gap: 6px; align-items: center; }
+    .member-item { background: #0f3460; border-radius: 8px; padding: 10px; margin-bottom: 6px; }
+    .member-top { display: flex; justify-content: space-between; align-items: center; }
+    .member-name { font-weight: 600; font-size: 15px; }
+    .member-details { font-size: 11px; color: #888; margin-top: 3px; }
+    .member-actions { display: flex; gap: 4px; }
 
     /* Status board */
-    .status-board { margin-top: 16px; }
-    .status-card { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 12px; margin-bottom: 8px; font-size: 16px; }
-    .status-card.ok { background: #0a3d1e; border-left: 5px solid #00d26a; }
-    .status-card.trouble { background: #3d0a0a; border-left: 5px solid #e74c3c; animation: pulse 1s infinite; }
-    .status-card.unknown { background: #2a2a2a; border-left: 5px solid #666; }
-    .status-icon { font-size: 28px; }
-    .status-name { flex: 1; font-weight: 600; }
-    .status-time { font-size: 12px; color: #888; }
+    .status-card { display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 10px; margin-bottom: 6px; }
+    .status-card.ok { background: #0a3d1e; border-left: 4px solid #00d26a; }
+    .status-card.trouble { background: #3d0a0a; border-left: 4px solid #e74c3c; animation: pulse 1s infinite; }
+    .status-card.unknown { background: #2a2a2a; border-left: 4px solid #666; }
+    .status-icon { font-size: 22px; }
+    .status-name { flex: 1; font-weight: 600; font-size: 14px; }
+    .status-time { font-size: 11px; color: #888; }
 
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
 
-    .alert-banner { background: #e74c3c; text-align: center; padding: 12px; border-radius: 12px; font-size: 18px; font-weight: 700; animation: pulse 1.5s infinite; margin-bottom: 12px; }
-    .summary { display: flex; justify-content: center; gap: 24px; margin: 12px 0; font-size: 20px; font-weight: 700; }
+    .alert-banner { background: #e74c3c; text-align: center; padding: 10px; border-radius: 10px; font-size: 16px; font-weight: 700; animation: pulse 1.5s infinite; margin-bottom: 8px; }
+    .summary { display: flex; justify-content: center; gap: 16px; margin: 8px 0; font-size: 18px; font-weight: 700; }
     .summary .ok-count { color: #00d26a; }
     .summary .trouble-count { color: #e74c3c; }
     .summary .missing-count { color: #888; }
 
-    .no-circle { text-align: center; padding: 40px; color: #666; }
-    select { padding: 10px; border-radius: 8px; border: 1px solid #333; background: #0f3460; color: #fff; font-size: 14px; width: 100%; margin-bottom: 12px; }
+    .empty { text-align: center; color: #666; padding: 16px; font-size: 14px; }
+
+    /* Modal overlay for editing */
+    .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
+    .modal.show { display: flex; }
+    .modal-box { background: #16213e; border-radius: 12px; padding: 20px; width: 100%; max-width: 400px; }
+    .modal-box h3 { margin-bottom: 12px; font-size: 16px; }
+    .modal-box input { width: 100%; margin-bottom: 8px; }
+    .modal-btns { display: flex; gap: 8px; margin-top: 12px; }
+    .modal-btns button { flex: 1; padding: 10px; }
+    .btn-cancel { background: #333; color: #fff; }
+    .btn-save { background: #00d26a; color: #000; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>Safe <span>Circle</span></h1>
 
-    <!-- Circle selector / creator -->
-    <div class="setup">
+    <!-- Circle selector -->
+    <div class="card">
       <h2>Your Circle</h2>
-      <div class="row">
-        <select id="circle-select"><option value="">-- Select or create a circle --</option></select>
+      <div class="circle-header">
+        <select id="circle-select"><option value="">-- Select or create --</option></select>
+        <div class="circle-actions" id="circle-actions" style="display:none">
+          <button class="btn-edit" onclick="editCircle()">Edit</button>
+          <button class="btn-danger" onclick="deleteCircle()">Del</button>
+        </div>
       </div>
       <div class="row">
-        <input id="circle-name" placeholder="New circle name (e.g. Family)" />
+        <input id="circle-name" placeholder="New circle name" style="flex:1" />
         <button class="btn-add" onclick="createCircle()">Create</button>
       </div>
     </div>
 
-    <!-- Members (shown when circle selected) -->
+    <!-- Members -->
     <div id="circle-panel" style="display:none">
-      <div class="setup">
+      <div class="card">
         <h2>Members</h2>
         <div class="row">
-          <input id="member-name" placeholder="Name *" style="flex:2" />
-          <input id="member-area" list="cities-list" placeholder="Area (for auto-alert)" style="flex:2" />
+          <input id="member-name" placeholder="Name *" style="flex:1" />
+          <input id="member-area" list="cities-list" placeholder="Area" style="flex:1" />
           <datalist id="cities-list"></datalist>
         </div>
         <div class="row">
-          <input id="member-phone" placeholder="Phone (optional)" style="flex:1" />
-          <input id="member-email" placeholder="Email (optional)" style="flex:1" />
+          <input id="member-phone" placeholder="Phone" style="flex:1" />
+          <input id="member-email" placeholder="Email" style="flex:1" />
           <button class="btn-add" onclick="addMember()">Add</button>
         </div>
         <div id="member-list"></div>
       </div>
 
-      <!-- Alert button / Status -->
       <div id="event-area"></div>
+    </div>
+  </div>
+
+  <!-- Edit modal -->
+  <div class="modal" id="modal">
+    <div class="modal-box">
+      <h3 id="modal-title">Edit</h3>
+      <input id="modal-name" placeholder="Name" />
+      <input id="modal-area" list="cities-list" placeholder="Area" />
+      <input id="modal-phone" placeholder="Phone" />
+      <input id="modal-email" placeholder="Email" />
+      <div class="modal-btns">
+        <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+        <button class="btn-save" onclick="saveModal()">Save</button>
+      </div>
     </div>
   </div>
 
   <script>
     const API = '/api';
     let currentCircle = null;
+    let currentCircleName = '';
     let pollInterval = null;
+    let modalCallback = null;
+
+    // --- Modal ---
+    function openModal(title, fields, callback) {
+      document.getElementById('modal-title').textContent = title;
+      document.getElementById('modal-name').value = fields.name || '';
+      document.getElementById('modal-area').value = fields.area || '';
+      document.getElementById('modal-phone').value = fields.phone || '';
+      document.getElementById('modal-email').value = fields.email || '';
+      // Show/hide fields based on type
+      const isCircle = !fields.showAll;
+      document.getElementById('modal-area').style.display = isCircle ? 'none' : '';
+      document.getElementById('modal-phone').style.display = isCircle ? 'none' : '';
+      document.getElementById('modal-email').style.display = isCircle ? 'none' : '';
+      modalCallback = callback;
+      document.getElementById('modal').classList.add('show');
+      document.getElementById('modal-name').focus();
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('show');
+      modalCallback = null;
+    }
+
+    function saveModal() {
+      if (modalCallback) {
+        modalCallback({
+          name: document.getElementById('modal-name').value.trim(),
+          area: document.getElementById('modal-area').value.trim(),
+          phone: document.getElementById('modal-phone').value.trim(),
+          email: document.getElementById('modal-email').value.trim(),
+        });
+      }
+      closeModal();
+    }
 
     // --- Circles ---
     async function loadCircles() {
       const res = await fetch(`${API}/circles`);
       const circles = await res.json();
       const sel = document.getElementById('circle-select');
-      sel.innerHTML = '<option value="">-- Select or create a circle --</option>';
+      sel.innerHTML = '<option value="">-- Select or create --</option>';
       circles.forEach(c => {
         sel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
       });
       if (currentCircle) sel.value = currentCircle;
+      document.getElementById('circle-actions').style.display = currentCircle ? 'flex' : 'none';
     }
 
     document.getElementById('circle-select').addEventListener('change', (e) => {
       currentCircle = e.target.value || null;
+      currentCircleName = e.target.options[e.target.selectedIndex]?.text || '';
       document.getElementById('circle-panel').style.display = currentCircle ? 'block' : 'none';
+      document.getElementById('circle-actions').style.display = currentCircle ? 'flex' : 'none';
       if (currentCircle) {
         loadMembers();
         startPolling();
@@ -131,6 +203,7 @@
       });
       const circle = await res.json();
       currentCircle = circle.id;
+      currentCircleName = circle.name;
       document.getElementById('circle-name').value = '';
       await loadCircles();
       document.getElementById('circle-select').value = currentCircle;
@@ -139,28 +212,54 @@
       startPolling();
     }
 
+    function editCircle() {
+      openModal('Edit Circle', { name: currentCircleName }, async (data) => {
+        if (!data.name) return;
+        await fetch(`${API}/circles/${currentCircle}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: data.name }),
+        });
+        currentCircleName = data.name;
+        loadCircles();
+      });
+    }
+
+    async function deleteCircle() {
+      if (!confirm(`Delete circle "${currentCircleName}" and all its members?`)) return;
+      await fetch(`${API}/circles/${currentCircle}`, { method: 'DELETE' });
+      currentCircle = null;
+      currentCircleName = '';
+      document.getElementById('circle-panel').style.display = 'none';
+      stopPolling();
+      loadCircles();
+    }
+
     // --- Members ---
     async function loadMembers() {
       const res = await fetch(`${API}/circles/${currentCircle}/members`);
       const members = await res.json();
       const container = document.getElementById('member-list');
       if (members.length === 0) {
-        container.innerHTML = '<div style="color:#666;text-align:center;padding:12px">No members yet</div>';
+        container.innerHTML = '<div class="empty">No members yet</div>';
         return;
       }
       container.innerHTML = members.map(m => {
         const details = [m.area, m.phone, m.email].filter(Boolean).join(' · ');
+        const escapedName = m.name.replace(/'/g, "\\'");
         return `<div class="member-item">
-          <div>
+          <div class="member-top">
             <span class="member-name">${m.name}</span>
-            ${details ? `<div style="font-size:11px;color:#666;margin-top:2px">${details}</div>` : ''}
+            <div class="member-actions">
+              <button class="btn-send" style="font-size:11px;padding:5px 8px" onclick="shareLink('${m.id}', '${escapedName}')">Share</button>
+              <button class="btn-edit" style="font-size:11px;padding:5px 8px" onclick="editMember('${m.id}')">Edit</button>
+              <button class="btn-danger" style="font-size:11px;padding:5px 8px" onclick="removeMember('${m.id}')">X</button>
+            </div>
           </div>
-          <div class="member-links">
-            <button class="btn-copy btn-sm" onclick="shareLink('${m.id}', '${m.name}')">Send Setup Link</button>
-            <button class="btn-danger btn-sm" onclick="removeMember('${m.id}')">X</button>
-          </div>
+          ${details ? `<div class="member-details">${details}</div>` : ''}
         </div>`;
       }).join('');
+      // Store members for edit lookup
+      window._members = members;
     }
 
     async function addMember() {
@@ -180,6 +279,19 @@
       loadMembers();
     }
 
+    function editMember(id) {
+      const m = (window._members || []).find(x => x.id === id);
+      if (!m) return;
+      openModal('Edit Member', { name: m.name, area: m.area, phone: m.phone, email: m.email, showAll: true }, async (data) => {
+        if (!data.name) return;
+        await fetch(`${API}/members/${id}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+        loadMembers();
+      });
+    }
+
     async function removeMember(id) {
       if (!confirm('Remove this member?')) return;
       await fetch(`${API}/members/${id}`, { method: 'DELETE' });
@@ -193,7 +305,7 @@
       if (navigator.share) {
         navigator.share({ title: 'Safe Circle', text: msg }).catch(() => {});
       } else {
-        navigator.clipboard.writeText(msg).then(() => alert('Setup message copied! Paste it in WhatsApp or SMS to this person.'));
+        navigator.clipboard.writeText(msg).then(() => alert('Setup message copied!'));
       }
     }
 
@@ -219,17 +331,13 @@
       const area = document.getElementById('event-area');
 
       if (!data.active) {
-        area.innerHTML = `
-          <button class="btn-alert" onclick="startEvent()">ALERT — Start Check-in</button>
-        `;
+        area.innerHTML = `<button class="btn-alert" onclick="startEvent()">ALERT — Start Check-in</button>`;
         return;
       }
 
       const ok = data.members.filter(m => m.status === 'ok');
       const trouble = data.members.filter(m => m.status === 'trouble');
       const unknown = data.members.filter(m => m.status === 'unknown');
-
-      // Sort: trouble first, then unknown, then ok
       const sorted = [...trouble, ...unknown, ...ok];
 
       area.innerHTML = `
@@ -239,15 +347,13 @@
           <span class="trouble-count">${trouble.length} Trouble</span>
           <span class="missing-count">${unknown.length} Missing</span>
         </div>
-        <div class="status-board">
-          ${sorted.map(m => `
-            <div class="status-card ${m.status}">
-              <span class="status-icon">${m.status === 'ok' ? '✅' : m.status === 'trouble' ? '🔴' : '⚫'}</span>
-              <span class="status-name">${m.name}</span>
-              <span class="status-time">${m.time ? new Date(m.time).toLocaleTimeString() : 'No response'}</span>
-            </div>
-          `).join('')}
-        </div>
+        ${sorted.map(m => `
+          <div class="status-card ${m.status}">
+            <span class="status-icon">${m.status === 'ok' ? '✅' : m.status === 'trouble' ? '🔴' : '⚫'}</span>
+            <span class="status-name">${m.name}</span>
+            <span class="status-time">${m.time ? new Date(m.time).toLocaleTimeString() : 'No response'}</span>
+          </div>
+        `).join('')}
         <button class="btn-end" onclick="endEvent('${data.eventId}')">End Check-in</button>
       `;
     }
@@ -274,7 +380,7 @@
           opt.value = c.label;
           datalist.appendChild(opt);
         });
-      } catch (e) { console.error('Failed to load cities'); }
+      } catch (e) {}
     }
 
     // Init

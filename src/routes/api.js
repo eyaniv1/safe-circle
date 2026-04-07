@@ -21,6 +21,16 @@ router.post('/circles', async (req, res) => {
   res.status(201).json(rows[0]);
 });
 
+router.put('/circles/:id', async (req, res) => {
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ error: 'Name required' });
+  const { rows } = await pool.query(
+    'UPDATE circles SET name = $1 WHERE id = $2 RETURNING *', [name, req.params.id]
+  );
+  if (rows.length === 0) return res.status(404).json({ error: 'Circle not found' });
+  res.json(rows[0]);
+});
+
 router.delete('/circles/:id', async (req, res) => {
   await pool.query('DELETE FROM circles WHERE id = $1', [req.params.id]);
   res.json({ ok: true });
