@@ -138,6 +138,7 @@ router.get('/circles/:circleId/status', async (req, res) => {
   }
 
   const event = activeEvent.rows[0];
+  const triggeredAreas = event.triggered_areas ? event.triggered_areas.split(',') : [];
   const responses = await pool.query(
     'SELECT * FROM responses WHERE event_id = $1', [event.id]
   );
@@ -146,9 +147,14 @@ router.get('/circles/:circleId/status', async (req, res) => {
 
   const status = members.rows.map((m) => {
     const response = responseMap[m.id];
+    // Check if member's area is in the triggered alert zones
+    const inAlertZone = triggeredAreas.length === 0 || !m.area ||
+      triggeredAreas.some(a => a.includes(m.area) || m.area.includes(a));
     return {
       id: m.id,
       name: m.name,
+      area: m.area || '',
+      inAlertZone,
       status: response ? response.status : 'unknown',
       time: response ? response.time : null,
     };
@@ -158,6 +164,7 @@ router.get('/circles/:circleId/status', async (req, res) => {
     active: true,
     eventId: event.id,
     startedAt: event.created_at,
+    triggeredAreas,
     members: status,
   });
 });

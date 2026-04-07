@@ -45,6 +45,8 @@
     .status-card.ok { background: #0a3d1e; border-left: 4px solid #00d26a; }
     .status-card.trouble { background: #3d0a0a; border-left: 4px solid #e74c3c; animation: pulse 1s infinite; }
     .status-card.unknown { background: #2a2a2a; border-left: 4px solid #666; }
+    .status-card.safe-zone { background: #1a1a2e; border-left: 4px solid #3498db; opacity: 0.6; }
+    .safe-zone-label { font-size: 10px; color: #3498db; margin-left: 4px; }
     .status-icon { font-size: 22px; }
     .status-name { flex: 1; font-weight: 600; font-size: 14px; }
     .status-time { font-size: 11px; color: #888; }
@@ -349,9 +351,11 @@
         return;
       }
 
-      const ok = data.members.filter(m => m.status === 'ok');
-      const trouble = data.members.filter(m => m.status === 'trouble');
-      const unknown = data.members.filter(m => m.status === 'unknown');
+      const inZone = data.members.filter(m => m.inAlertZone !== false);
+      const outZone = data.members.filter(m => m.inAlertZone === false);
+      const ok = inZone.filter(m => m.status === 'ok');
+      const trouble = inZone.filter(m => m.status === 'trouble');
+      const unknown = inZone.filter(m => m.status === 'unknown');
       const sorted = [...trouble, ...unknown, ...ok];
 
       area.innerHTML = `
@@ -368,6 +372,16 @@
             <span class="status-time">${m.time ? new Date(m.time).toLocaleTimeString() : 'No response'}</span>
           </div>
         `).join('')}
+        ${outZone.length > 0 ? `
+          <div style="font-size:12px;color:#3498db;margin:10px 0 6px;text-align:center">Not in alert zone</div>
+          ${outZone.map(m => `
+            <div class="status-card safe-zone">
+              <span class="status-icon">🔵</span>
+              <span class="status-name">${m.name}<span class="safe-zone-label">${m.area || ''}</span></span>
+              <span class="status-time">${m.status !== 'unknown' ? (m.status === 'ok' ? '✅' : '🔴') : ''}</span>
+            </div>
+          `).join('')}
+        ` : ''}
         <button class="btn-end" onclick="endEvent('${data.eventId}')">End Check-in</button>
       `;
     }

@@ -41,6 +41,7 @@ async function init() {
 
   // Migrations
   try { await pool.query(`ALTER TABLE members ADD COLUMN area TEXT DEFAULT ''`); } catch (e) { /* exists */ }
+  try { await pool.query(`ALTER TABLE events ADD COLUMN triggered_areas TEXT DEFAULT ''`); } catch (e) { /* exists */ }
 
   console.log('Database tables ready');
 }

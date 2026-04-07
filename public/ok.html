@@ -34,6 +34,8 @@
     .member-row.ok { background: rgba(0,210,106,0.15); }
     .member-row.trouble { background: rgba(231,76,60,0.2); }
     .member-row.unknown { background: rgba(255,255,255,0.05); }
+    .member-row.safe-zone { background: rgba(52,152,219,0.1); opacity: 0.5; }
+    .safe-label { font-size: 10px; color: #3498db; margin-left: 4px; }
     .member-icon { font-size: 20px; }
     .member-name { flex: 1; font-weight: 600; font-size: 15px; }
     .member-time { font-size: 11px; color: #888; }
@@ -140,9 +142,11 @@
 
     function renderStatus(members) {
       document.getElementById('circle-status').style.display = 'block';
-      const ok = members.filter(m => m.status === 'ok');
-      const trouble = members.filter(m => m.status === 'trouble');
-      const unknown = members.filter(m => m.status === 'unknown');
+      const inZone = members.filter(m => m.inAlertZone !== false);
+      const outZone = members.filter(m => m.inAlertZone === false);
+      const ok = inZone.filter(m => m.status === 'ok');
+      const trouble = inZone.filter(m => m.status === 'trouble');
+      const unknown = inZone.filter(m => m.status === 'unknown');
 
       document.getElementById('summary').innerHTML =
         `<span class="s-ok">${ok.length} OK</span>` +
@@ -150,7 +154,7 @@
         `<span class="s-missing">${unknown.length} Missing</span>`;
 
       const sorted = [...trouble, ...unknown, ...ok];
-      document.getElementById('member-list').innerHTML = sorted.map(m => {
+      let html = sorted.map(m => {
         const icon = m.status === 'ok' ? '✅' : m.status === 'trouble' ? '🔴' : '⚫';
         const time = m.time ? new Date(m.time).toLocaleTimeString() : '';
         return `<div class="member-row ${m.status}">
@@ -159,6 +163,20 @@
           <span class="member-time">${time}</span>
         </div>`;
       }).join('');
+
+      if (outZone.length > 0) {
+        html += `<div style="font-size:11px;color:#3498db;margin:8px 0 4px;text-align:center">Not in alert zone</div>`;
+        html += outZone.map(m => {
+          const statusIcon = m.status === 'ok' ? '✅' : m.status === 'trouble' ? '🔴' : '';
+          return `<div class="member-row safe-zone">
+            <span class="member-icon">🔵</span>
+            <span class="member-name">${m.name}<span class="safe-label">${m.area || ''}</span></span>
+            <span class="member-time">${statusIcon}</span>
+          </div>`;
+        }).join('');
+      }
+
+      document.getElementById('member-list').innerHTML = html;
     }
 
     function showError(msg) {

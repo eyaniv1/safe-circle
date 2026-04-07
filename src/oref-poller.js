@@ -64,10 +64,11 @@ async function checkAndTrigger() {
           continue;
         }
 
-        // Auto-trigger a check-in event
+        // Auto-trigger a check-in event with the areas that triggered it
         const eventId = uuidv4();
         await pool.query(
-          'INSERT INTO events (id, circle_id) VALUES ($1, $2)', [eventId, circleId]
+          'INSERT INTO events (id, circle_id, triggered_areas) VALUES ($1, $2, $3)',
+          [eventId, circleId, alertAreas.join(',')]
         );
         recentlyTriggered.set(circleId, Date.now());
         console.log(`[OREF] Auto-triggered check-in for circle ${circleId} — matched areas: ${alertAreas.join(', ')}`);
