@@ -277,8 +277,11 @@
             </div>
           </div>
           ${details ? `<div class="member-details">${details}</div>` : ''}
-          <div class="member-details" style="margin-top:4px">
-            Setup: ${visited} Opened link &nbsp; ${okSet} OK shortcut &nbsp; ${troubleSet} Trouble shortcut
+          <div class="member-details" style="margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <span>${visited} Link</span>
+            <span>${okSet} OK</span>
+            <span>${troubleSet} Trouble</span>
+            ${!allReady ? `<button style="font-size:10px;padding:2px 6px;background:#f39c12;color:#000;border:none;border-radius:4px;cursor:pointer" onclick="markSetup('${m.id}')">Mark ready</button>` : ''}
           </div>
         </div>`;
       }).join('');
@@ -314,6 +317,11 @@
         });
         loadMembers();
       });
+    }
+
+    async function markSetup(id) {
+      await fetch(`${API}/members/${id}/mark-setup`, { method: 'POST' });
+      loadMembers();
     }
 
     async function removeMember(id) {

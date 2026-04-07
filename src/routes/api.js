@@ -73,6 +73,15 @@ router.put('/members/:id', async (req, res) => {
   res.json(rows[0]);
 });
 
+// Mark member as fully set up (for retroactive fix)
+router.post('/members/:id/mark-setup', async (req, res) => {
+  await pool.query(
+    'UPDATE members SET setup_visited = true, ok_clicked = true, trouble_clicked = true WHERE id = $1',
+    [req.params.id]
+  );
+  res.json({ ok: true });
+});
+
 router.delete('/members/:id', async (req, res) => {
   await pool.query('DELETE FROM members WHERE id = $1', [req.params.id]);
   res.json({ ok: true });
