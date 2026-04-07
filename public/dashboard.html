@@ -59,6 +59,15 @@
 
     .empty { text-align: center; color: #666; padding: 16px; font-size: 14px; }
 
+    /* Searchable dropdown */
+    .area-picker { position: relative; flex: 1; min-width: 0; }
+    .area-picker input { width: 100%; }
+    .area-dropdown { display: none; position: absolute; top: 100%; left: 0; right: 0; max-height: 200px; overflow-y: auto; background: #0f3460; border: 1px solid #333; border-radius: 0 0 8px 8px; z-index: 50; -webkit-overflow-scrolling: touch; }
+    .area-dropdown.open { display: block; }
+    .area-option { padding: 10px 12px; cursor: pointer; font-size: 14px; border-bottom: 1px solid #1a1a3e; }
+    .area-option:hover, .area-option.highlighted { background: #16213e; }
+    .area-option mark { background: #00d26a; color: #000; border-radius: 2px; }
+
     /* Modal overlay for editing */
     .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
     .modal.show { display: flex; }
@@ -97,8 +106,10 @@
         <h2>Members</h2>
         <div class="row">
           <input id="member-name" placeholder="Name *" style="flex:1" />
-          <input id="member-area" list="cities-list" placeholder="Area" style="flex:1" />
-          <datalist id="cities-list"></datalist>
+          <div class="area-picker">
+            <input id="member-area" placeholder="Area (type to search)" autocomplete="off" />
+            <div class="area-dropdown" id="member-area-dropdown"></div>
+          </div>
         </div>
         <div class="row">
           <input id="member-phone" placeholder="Phone" style="flex:1" />
@@ -117,7 +128,10 @@
     <div class="modal-box">
       <h3 id="modal-title">Edit</h3>
       <input id="modal-name" placeholder="Name" />
-      <input id="modal-area" list="cities-list" placeholder="Area" />
+      <div class="area-picker">
+        <input id="modal-area" placeholder="Area (type to search)" autocomplete="off" />
+        <div class="area-dropdown" id="modal-area-dropdown"></div>
+      </div>
       <input id="modal-phone" placeholder="Phone" />
       <input id="modal-email" placeholder="Email" />
       <div class="modal-btns">
@@ -369,23 +383,105 @@
       pollStatus();
     }
 
-    // Load cities for area autocomplete
+    // Searchable area dropdown
+    let allCities = [];
+
     async function loadCities() {
       try {
         const res = await fetch('/cities.json');
-        const cities = await res.json();
-        const datalist = document.getElementById('cities-list');
-        cities.forEach(c => {
-          const opt = document.createElement('option');
-          opt.value = c.label;
-          datalist.appendChild(opt);
-        });
+        allCities = (await res.json()).map(c => c.label).sort((a, b) => a.localeCompare(b, 'he'));
       } catch (e) {}
     }
 
+    function setupAreaPicker(inputId, dropdownId) {
+      const input = document.getElementById(inputId);
+      const dropdown = document.getElementById(dropdownId);
+      let highlightIdx = -1;
+
+      input.addEventListener('focus', () => showDropdown(input, dropdown, ''));
+      input.addEventListener('input', () => {
+        highlightIdx = -1;
+        showDropdown(input, dropdown, input.value);
+      });
+
+      input.addEventListener('keydown', (e) => {
+        const items = dropdown.querySelectorAll('.area-option');
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          highlightIdx = Math.min(highlightIdx + 1, items.length - 1);
+          updateHighlight(items, highlightIdx);
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          highlightIdx = Math.max(highlightIdx - 1, 0);
+          updateHighlight(items, highlightIdx);
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          if (highlightIdx >= 0 && items[highlightIdx]) {
+            input.value = items[highlightIdx].dataset.value;
+            dropdown.classList.remove('open');
+          }
+        } else if (e.key === 'Escape') {
+          dropdown.classList.remove('open');
+        }
+      });
+
+      // Close on outside click
+      document.addEventListener('click', (e) => {
+        if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+          dropdown.classList.remove('open');
+        }
+      });
+    }
+
+    function showDropdown(input, dropdown, query) {
+      const q = query.trim().toLowerCase();
+      let filtered = allCities;
+      if (q) {
+        // Show items starting with query first, then containing
+        const starts = allCities.filter(c => c.toLowerCase().startsWith(q));
+        const contains = allCities.filter(c => !c.toLowerCase().startsWith(q) && c.toLowerCase().includes(q));
+        filtered = [...starts, ...contains];
+      }
+      filtered = filtered.slice(0, 50); // Limit for performance
+
+      if (filtered.length === 0) {
+        dropdown.classList.remove('open');
+        return;
+      }
+
+      dropdown.innerHTML = filtered.map((c, i) => {
+        let display = c;
+        if (q) {
+          const idx = c.toLowerCase().indexOf(q);
+          if (idx >= 0) {
+            display = c.slice(0, idx) + '<mark>' + c.slice(idx, idx + q.length) + '</mark>' + c.slice(idx + q.length);
+          }
+        }
+        return `<div class="area-option" data-value="${c}" data-idx="${i}">${display}</div>`;
+      }).join('');
+
+      dropdown.classList.add('open');
+
+      // Click handler for options
+      dropdown.querySelectorAll('.area-option').forEach(opt => {
+        opt.addEventListener('click', () => {
+          input.value = opt.dataset.value;
+          dropdown.classList.remove('open');
+        });
+      });
+    }
+
+    function updateHighlight(items, idx) {
+      items.forEach((el, i) => el.classList.toggle('highlighted', i === idx));
+      if (items[idx]) items[idx].scrollIntoView({ block: 'nearest' });
+    }
+
     // Init
+    loadCities().then(() => {
+      setupAreaPicker('member-area', 'member-area-dropdown');
+      setupAreaPicker('modal-area', 'modal-area-dropdown');
+    });
     loadCircles();
-    loadCities();
   </script>
 </body>
 </html>
