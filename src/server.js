@@ -22,36 +22,14 @@ app.get('/checkin/:memberId', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/checkin.html'));
 });
 
-// Direct one-tap OK endpoint (for home screen shortcut)
+// One-tap OK page (serves HTML with distinct green icon + title)
 app.get('/ok/:memberId', (req, res) => {
-  const { db, save } = require('./store');
-  const member = db.members[req.params.memberId];
-  if (!member) return res.status(404).send('Member not found');
-
-  const activeEvent = Object.values(db.events).find(
-    (e) => e.circleId === member.circleId && e.active
-  );
-  if (activeEvent) {
-    activeEvent.responses[member.id] = { status: 'ok', time: new Date().toISOString() };
-    save(db);
-  }
-  res.redirect(`/checkin/${member.id}?confirmed=ok`);
+  res.sendFile(path.join(__dirname, '../public/ok.html'));
 });
 
-// Direct one-tap Trouble endpoint
+// One-tap Trouble page (serves HTML with distinct red icon + title)
 app.get('/trouble/:memberId', (req, res) => {
-  const { db, save } = require('./store');
-  const member = db.members[req.params.memberId];
-  if (!member) return res.status(404).send('Member not found');
-
-  const activeEvent = Object.values(db.events).find(
-    (e) => e.circleId === member.circleId && e.active
-  );
-  if (activeEvent) {
-    activeEvent.responses[member.id] = { status: 'trouble', time: new Date().toISOString() };
-    save(db);
-  }
-  res.redirect(`/checkin/${member.id}?confirmed=trouble`);
+  res.sendFile(path.join(__dirname, '../public/trouble.html'));
 });
 
 app.listen(PORT, () => {

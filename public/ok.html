@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="I'm OK" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#00d26a" />
+  <title>I'm OK</title>
+  <link rel="icon" href="/icons/ok.svg" />
+  <link rel="apple-touch-icon" href="/icons/ok.svg" />
+  <style>
+    * { margin: 0; padding: 0; }
+    body { background: #00d26a; color: #000; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+    .icon { font-size: 100px; margin-bottom: 16px; }
+    .text { font-size: 28px; font-weight: 700; }
+    .sub { font-size: 16px; margin-top: 8px; opacity: 0.7; }
+    .error { display: none; color: #fff; background: rgba(0,0,0,0.3); padding: 12px 20px; border-radius: 8px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="icon">✅</div>
+  <div class="text">Sending OK...</div>
+  <div class="sub" id="status">Reporting your status</div>
+  <div class="error" id="error"></div>
+
+  <script>
+    const memberId = location.pathname.split('/ok/')[1];
+
+    async function report() {
+      try {
+        const res = await fetch(`/api/checkin/${memberId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'ok' }),
+        });
+        if (res.ok) {
+          document.querySelector('.text').textContent = "You're OK";
+          document.getElementById('status').textContent = 'Status reported successfully';
+          if (navigator.vibrate) navigator.vibrate(200);
+        } else {
+          const err = await res.json();
+          if (err.error === 'No active check-in event') {
+            document.querySelector('.text').textContent = 'No active alert';
+            document.getElementById('status').textContent = 'No check-in is active right now';
+          } else {
+            showError(err.error);
+          }
+        }
+      } catch (e) {
+        showError('Network error. Check your connection.');
+      }
+    }
+
+    function showError(msg) {
+      document.querySelector('.text').textContent = 'Error';
+      const el = document.getElementById('error');
+      el.textContent = msg;
+      el.style.display = 'block';
+    }
+
+    report();
+  </script>
+</body>
+</html>
