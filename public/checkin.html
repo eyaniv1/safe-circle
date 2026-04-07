@@ -35,19 +35,13 @@
     .no-event { text-align: center; color: #666; font-size: 16px; }
     .no-event .icon { font-size: 48px; margin-bottom: 12px; }
 
-    .shortcuts { margin-top: 40px; background: #16213e; border-radius: 12px; padding: 16px; max-width: 400px; width: 100%; font-size: 14px; color: #aaa; line-height: 1.8; }
-    .shortcuts h3 { color: #fff; font-size: 15px; margin-bottom: 10px; }
-    .shortcut-link { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 8px; margin-bottom: 8px; cursor: pointer; text-decoration: none; color: inherit; }
-    .shortcut-link.ok-link { background: #0a3d1e; border: 1px solid #00d26a; }
-    .shortcut-link.trouble-link { background: #3d0a0a; border: 1px solid #e74c3c; }
-    .shortcut-link .link-icon { font-size: 24px; }
-    .shortcut-link .link-text { flex: 1; }
-    .shortcut-link .link-label { font-weight: 700; color: #fff; }
-    .shortcut-link .link-url { font-size: 11px; color: #666; word-break: break-all; }
-    .shortcut-link .copy-btn { background: #333; color: #fff; border: none; padding: 6px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; }
-
-    .setup-steps { margin-top: 12px; font-size: 13px; color: #666; line-height: 1.6; }
-    .setup-steps strong { color: #aaa; }
+    .shortcuts { margin-top: 40px; background: #16213e; border-radius: 12px; padding: 16px; max-width: 400px; width: 100%; }
+    .shortcuts h3 { color: #fff; font-size: 16px; margin-bottom: 14px; text-align: center; }
+    .shortcut-link { display: flex; align-items: center; gap: 14px; padding: 18px 16px; border-radius: 12px; margin-bottom: 10px; text-decoration: none; color: #fff; font-size: 20px; font-weight: 700; }
+    .shortcut-link.ok-link { background: #00d26a; color: #000; }
+    .shortcut-link.trouble-link { background: #e74c3c; }
+    .shortcut-link .link-icon { font-size: 32px; }
+    .setup-steps { margin-top: 12px; font-size: 13px; color: #666; text-align: center; line-height: 1.5; }
   </style>
 </head>
 <body>
@@ -87,35 +81,20 @@
 
     <!-- Shortcut setup -->
     <div class="shortcuts" id="shortcuts" style="display:none">
-      <h3>Set up one-tap shortcuts</h3>
-      <p style="margin-bottom:12px;color:#888">Save these two links to your home screen for instant check-in:</p>
+      <h3>Add these to your home screen</h3>
 
-      <div class="shortcut-link ok-link" id="ok-shortcut">
+      <a class="shortcut-link ok-link" id="ok-link" href="#">
         <span class="link-icon">✅</span>
-        <div class="link-text">
-          <div class="link-label">I'm OK</div>
-          <div class="link-url" id="ok-url"></div>
-        </div>
-        <button class="copy-btn" onclick="copyUrl('ok')">Copy</button>
-      </div>
+        <span class="link-label">I'm OK</span>
+      </a>
 
-      <div class="shortcut-link trouble-link" id="trouble-shortcut">
+      <a class="shortcut-link trouble-link" id="trouble-link" href="#">
         <span class="link-icon">🔴</span>
-        <div class="link-text">
-          <div class="link-label">Trouble</div>
-          <div class="link-url" id="trouble-url"></div>
-        </div>
-        <button class="copy-btn" onclick="copyUrl('trouble')">Copy</button>
-      </div>
+        <span class="link-label">Trouble</span>
+      </a>
 
       <div class="setup-steps">
-        <strong>How to add to home screen:</strong><br />
-        1. Tap "Copy" on a link above<br />
-        2. Open it in your browser<br />
-        3. <strong>iPhone:</strong> Tap Share (⬆) → "Add to Home Screen"<br />
-        4. <strong>Android:</strong> Tap ⋮ menu → "Add to Home Screen"<br />
-        5. Repeat for the other link<br /><br />
-        You'll have two icons — one green, one red. One tap = check-in done.
+        Tap a link → Share (⬆) → Add to Home Screen. Repeat for the other.
       </div>
     </div>
   </div>
@@ -128,8 +107,8 @@
     // Set shortcut URLs
     const okUrl = `${baseUrl}/ok/${memberId}`;
     const troubleUrl = `${baseUrl}/trouble/${memberId}`;
-    document.getElementById('ok-url').textContent = okUrl;
-    document.getElementById('trouble-url').textContent = troubleUrl;
+    document.getElementById('ok-link').href = okUrl;
+    document.getElementById('trouble-link').href = troubleUrl;
 
     // Check if redirected from one-tap shortcut
     const params = new URLSearchParams(location.search);
@@ -204,13 +183,6 @@
       document.getElementById('confirmed-icon').textContent = status === 'ok' ? '✅' : '🔴';
       document.getElementById('confirmed-text').textContent = status === 'ok' ? "You're marked as OK" : 'Trouble reported';
       document.getElementById('confirmed-text').style.color = status === 'ok' ? '#00d26a' : '#e74c3c';
-    }
-
-    function copyUrl(type) {
-      const url = type === 'ok' ? okUrl : troubleUrl;
-      navigator.clipboard.writeText(url).then(() => {
-        alert(`${type === 'ok' ? 'OK' : 'Trouble'} link copied! Open it in your browser, then add to home screen.`);
-      });
     }
 
     checkEvent();
