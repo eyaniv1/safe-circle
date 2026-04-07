@@ -315,13 +315,12 @@
     }
 
     function shareLink(memberId, name) {
-      const baseUrl = location.origin;
-      const msg = `Safe Circle setup for ${name}:\n\nOpen this link to set up your check-in:\n${baseUrl}/checkin/${memberId}\n\nOr save these one-tap shortcuts to your home screen:\n✅ I'm OK: ${baseUrl}/ok/${memberId}\n🔴 Trouble: ${baseUrl}/trouble/${memberId}`;
+      const url = `${location.origin}/checkin/${memberId}`;
 
       if (navigator.share) {
-        navigator.share({ title: 'Safe Circle', text: msg }).catch(() => {});
+        navigator.share({ title: 'Safe Circle', url }).catch(() => {});
       } else {
-        navigator.clipboard.writeText(msg).then(() => alert('Setup message copied!'));
+        navigator.clipboard.writeText(url).then(() => alert('Link copied!'));
       }
     }
 
