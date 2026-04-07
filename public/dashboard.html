@@ -261,8 +261,6 @@
       }
       container.innerHTML = members.map(m => {
         const details = [m.area, m.phone, m.email].filter(Boolean).join(' · ');
-        const escapedName = m.name.replace(/'/g, "\\'");
-        // Setup status indicators
         const visited = m.setup_visited ? '✅' : '❌';
         const okSet = m.ok_clicked ? '✅' : '❌';
         const troubleSet = m.trouble_clicked ? '✅' : '❌';
@@ -271,9 +269,9 @@
           <div class="member-top">
             <span class="member-name">${m.name}</span>
             <div class="member-actions">
-              <button class="btn-send" style="font-size:11px;padding:5px 8px" onclick="shareLink('${m.id}', '${escapedName}')">Share</button>
-              <button class="btn-edit" style="font-size:11px;padding:5px 8px" onclick="editMember('${m.id}')">Edit</button>
-              <button class="btn-danger" style="font-size:11px;padding:5px 8px" onclick="removeMember('${m.id}')">X</button>
+              <button class="btn-send" style="font-size:11px;padding:5px 8px" data-action="share" data-id="${m.id}">Share</button>
+              <button class="btn-edit" style="font-size:11px;padding:5px 8px" data-action="edit" data-id="${m.id}">Edit</button>
+              <button class="btn-danger" style="font-size:11px;padding:5px 8px" data-action="remove" data-id="${m.id}">X</button>
             </div>
           </div>
           ${details ? `<div class="member-details">${details}</div>` : ''}
@@ -281,12 +279,26 @@
             <span>${visited} Link</span>
             <span>${okSet} OK</span>
             <span>${troubleSet} Trouble</span>
-            ${!allReady ? `<button style="font-size:10px;padding:2px 6px;background:#f39c12;color:#000;border:none;border-radius:4px;cursor:pointer" onclick="markSetup('${m.id}')">Mark ready</button>` : ''}
+            ${!allReady ? `<button style="font-size:10px;padding:2px 6px;background:#f39c12;color:#000;border:none;border-radius:4px;cursor:pointer" data-action="marksetup" data-id="${m.id}">Mark ready</button>` : ''}
           </div>
         </div>`;
       }).join('');
       // Store members for edit lookup
       window._members = members;
+
+      // Event delegation for member action buttons
+      container.querySelectorAll('[data-action]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.id;
+          const m = (window._members || []).find(x => x.id === id);
+          switch (btn.dataset.action) {
+            case 'share': shareLink(id, m ? m.name : ''); break;
+            case 'edit': editMember(id); break;
+            case 'remove': removeMember(id); break;
+            case 'marksetup': markSetup(id); break;
+          }
+        });
+      });
     }
 
     async function addMember() {
