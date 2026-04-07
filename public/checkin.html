@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#1a1a2e" />
+  <title>Safe Circle</title>
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="/icons/icon.svg" />
+  <link rel="apple-touch-icon" href="/icons/icon.svg" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1a2e; color: #eee; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+    .name { font-size: 18px; color: #888; margin-bottom: 8px; }
+    h1 { font-size: 22px; margin-bottom: 30px; text-align: center; }
+    h1 span { color: #00d26a; }
+
+    .buttons { display: flex; gap: 20px; width: 100%; max-width: 400px; }
+    .btn { flex: 1; padding: 0; border: none; border-radius: 20px; font-size: 22px; font-weight: 700; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 180px; transition: transform 0.1s; }
+    .btn:active { transform: scale(0.95); }
+    .btn-ok { background: #00d26a; color: #000; }
+    .btn-trouble { background: #e74c3c; color: #fff; }
+    .btn-icon { font-size: 56px; margin-bottom: 8px; }
+
+    .confirmed { display: none; text-align: center; }
+    .confirmed.show { display: block; }
+    .confirmed-icon { font-size: 80px; margin-bottom: 16px; }
+    .confirmed-text { font-size: 24px; font-weight: 700; }
+    .confirmed-sub { font-size: 14px; color: #888; margin-top: 8px; }
+    .confirmed-change { margin-top: 20px; font-size: 14px; color: #3498db; cursor: pointer; text-decoration: underline; background: none; border: none; }
+
+    .no-event { text-align: center; color: #666; font-size: 16px; }
+    .no-event .icon { font-size: 48px; margin-bottom: 12px; }
+
+    .shortcut-info { margin-top: 40px; background: #16213e; border-radius: 12px; padding: 16px; max-width: 400px; width: 100%; font-size: 13px; color: #888; line-height: 1.6; }
+    .shortcut-info strong { color: #ccc; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h1>Safe <span>Circle</span></h1>
+    <div class="name" id="member-name"></div>
+    <div id="loading" style="color:#666">Loading...</div>
+
+    <!-- Active event: show buttons -->
+    <div id="check-buttons" style="display:none">
+      <div class="buttons">
+        <button class="btn btn-ok" onclick="checkin('ok')">
+          <span class="btn-icon">✅</span>
+          I'm OK
+        </button>
+        <button class="btn btn-trouble" onclick="checkin('trouble')">
+          <span class="btn-icon">🔴</span>
+          Trouble
+        </button>
+      </div>
+    </div>
+
+    <!-- Confirmation -->
+    <div id="confirmed" class="confirmed">
+      <div class="confirmed-icon" id="confirmed-icon"></div>
+      <div class="confirmed-text" id="confirmed-text"></div>
+      <div class="confirmed-sub">Your status has been reported</div>
+      <button class="confirmed-change" onclick="showButtons()">Change my status</button>
+    </div>
+
+    <!-- No active event -->
+    <div id="no-event" style="display:none" class="no-event">
+      <div class="icon">🛡️</div>
+      <div>No active check-in right now.</div>
+      <div style="margin-top:8px">You'll see buttons here during an alert.</div>
+    </div>
+
+    <div class="shortcut-info" id="shortcut-info" style="display:none">
+      <strong>One-tap shortcut:</strong><br />
+      Add this page to your home screen for quick access.<br />
+      <strong>iPhone:</strong> Tap Share → Add to Home Screen<br />
+      <strong>Android:</strong> Tap ⋮ menu → Add to Home Screen
+    </div>
+  </div>
+
+  <script>
+    const memberId = location.pathname.split('/checkin/')[1];
+    const API = '/api';
+    let hasActiveEvent = false;
+
+    // Check if redirected from one-tap shortcut
+    const params = new URLSearchParams(location.search);
+    if (params.get('confirmed')) {
+      showConfirmation(params.get('confirmed'));
+    }
+
+    async function loadStatus() {
+      try {
+        const res = await fetch(`${API}/checkin/${memberId}`, { method: 'GET' });
+        // We don't have a GET endpoint for member info, so use the URL-based approach
+      } catch (e) {}
+
+      // Get member info by checking the page loaded correctly
+      document.getElementById('loading').style.display = 'none';
+
+      if (!params.get('confirmed')) {
+        // Poll for active event
+        checkEvent();
+      }
+    }
+
+    async function checkEvent() {
+      try {
+        // Fetch member info to get circle ID
+        const infoRes = await fetch(`${API}/member-info/${memberId}`);
+        if (!infoRes.ok) {
+          document.getElementById('loading').textContent = 'Member not found';
+          return;
+        }
+        const info = await infoRes.json();
+        document.getElementById('member-name').textContent = info.name;
+
+        const statusRes = await fetch(`${API}/circles/${info.circleId}/status`);
+        const status = await statusRes.json();
+
+        if (status.active) {
+          hasActiveEvent = true;
+          const myStatus = status.members.find(m => m.id === memberId);
+          if (myStatus && myStatus.status !== 'unknown') {
+            showConfirmation(myStatus.status);
+          } else {
+            showButtons();
+          }
+        } else {
+          document.getElementById('no-event').style.display = 'block';
+          document.getElementById('check-buttons').style.display = 'none';
+        }
+        document.getElementById('shortcut-info').style.display = 'block';
+      } catch (e) {
+        document.getElementById('loading').textContent = 'Error loading status';
+      }
+    }
+
+    function showButtons() {
+      document.getElementById('check-buttons').style.display = 'block';
+      document.getElementById('confirmed').classList.remove('show');
+      document.getElementById('no-event').style.display = 'none';
+    }
+
+    async function checkin(status) {
+      try {
+        const res = await fetch(`${API}/checkin/${memberId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status }),
+        });
+        if (res.ok) {
+          showConfirmation(status);
+          if (navigator.vibrate) navigator.vibrate(200);
+        } else {
+          const err = await res.json();
+          alert(err.error || 'Failed to check in');
+        }
+      } catch (e) {
+        alert('Network error. Try again.');
+      }
+    }
+
+    function showConfirmation(status) {
+      document.getElementById('check-buttons').style.display = 'none';
+      document.getElementById('no-event').style.display = 'none';
+      document.getElementById('loading').style.display = 'none';
+      const confirmed = document.getElementById('confirmed');
+      confirmed.classList.add('show');
+      document.getElementById('confirmed-icon').textContent = status === 'ok' ? '✅' : '🔴';
+      document.getElementById('confirmed-text').textContent = status === 'ok' ? "You're marked as OK" : 'Trouble reported';
+      document.getElementById('confirmed-text').style.color = status === 'ok' ? '#00d26a' : '#e74c3c';
+      document.getElementById('shortcut-info').style.display = 'block';
+    }
+
+    loadStatus();
+    // Auto-refresh every 5 seconds to detect new events
+    setInterval(() => {
+      if (!document.getElementById('confirmed').classList.contains('show')) {
+        checkEvent();
+      }
+    }, 5000);
+  </script>
+</body>
+</html>
