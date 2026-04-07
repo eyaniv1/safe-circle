@@ -12,22 +12,43 @@
   <link rel="icon" href="/icons/trouble.svg" />
   <link rel="apple-touch-icon" href="/icons/trouble.svg" />
   <style>
-    * { margin: 0; padding: 0; }
-    body { background: #e74c3c; color: #fff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; display: flex; align-items: center; justify-content: center; flex-direction: column; }
-    .icon { font-size: 100px; margin-bottom: 16px; }
-    .text { font-size: 28px; font-weight: 700; }
-    .sub { font-size: 16px; margin-top: 8px; opacity: 0.7; }
-    .error { display: none; background: rgba(0,0,0,0.3); padding: 12px 20px; border-radius: 8px; margin-top: 20px; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #2a0a0a; color: #fff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+    .header { background: #e74c3c; color: #fff; width: 100%; text-align: center; padding: 24px 16px; }
+    .header .icon { font-size: 48px; }
+    .header .text { font-size: 24px; font-weight: 700; margin-top: 4px; }
+    .header .sub { font-size: 14px; opacity: 0.7; margin-top: 4px; }
+    .error { display: none; background: rgba(0,0,0,0.3); padding: 12px 20px; border-radius: 8px; margin-top: 12px; width: 90%; text-align: center; }
+    .circle-status { width: 100%; max-width: 500px; padding: 16px; }
+    .circle-status h3 { font-size: 14px; color: #888; margin-bottom: 10px; text-align: center; }
+    .member-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 8px; margin-bottom: 6px; }
+    .member-row.ok { background: rgba(0,210,106,0.15); }
+    .member-row.trouble { background: rgba(231,76,60,0.2); }
+    .member-row.unknown { background: rgba(255,255,255,0.05); }
+    .member-icon { font-size: 20px; }
+    .member-name { flex: 1; font-weight: 600; font-size: 15px; }
+    .member-time { font-size: 11px; color: #888; }
+    .summary { display: flex; justify-content: center; gap: 20px; padding: 12px; font-size: 15px; font-weight: 700; }
+    .summary .s-ok { color: #00d26a; }
+    .summary .s-trouble { color: #e74c3c; }
+    .summary .s-missing { color: #666; }
   </style>
 </head>
 <body>
-  <div class="icon">🔴</div>
-  <div class="text">Sending Trouble...</div>
-  <div class="sub" id="status">Reporting your status</div>
+  <div class="header">
+    <div class="icon">🔴</div>
+    <div class="text">Sending Trouble...</div>
+    <div class="sub" id="status">Reporting your status</div>
+  </div>
   <div class="error" id="error"></div>
+  <div class="circle-status" id="circle-status" style="display:none">
+    <div class="summary" id="summary"></div>
+    <div id="member-list"></div>
+  </div>
 
   <script>
     const memberId = location.pathname.split('/trouble/')[1];
+    let circleId = null;
 
     async function report() {
       try {
@@ -38,9 +59,11 @@
         });
         if (res.ok) {
           document.querySelector('.text').textContent = 'Trouble Reported';
-          document.getElementById('status').textContent = 'Your circle has been notified — you can close this page';
+          document.getElementById('status').textContent = 'Your circle has been notified';
           if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-          setTimeout(() => { window.close(); }, 1500);
+          await loadCircleInfo();
+          pollStatus();
+          setInterval(pollStatus, 3000);
         } else {
           const err = await res.json();
           if (err.error === 'No active check-in event') {
@@ -53,6 +76,49 @@
       } catch (e) {
         showError('Network error. Check your connection.');
       }
+    }
+
+    async function loadCircleInfo() {
+      const res = await fetch(`/api/member-info/${memberId}`);
+      if (res.ok) {
+        const info = await res.json();
+        circleId = info.circleId;
+      }
+    }
+
+    async function pollStatus() {
+      if (!circleId) return;
+      try {
+        const res = await fetch(`/api/circles/${circleId}/status`);
+        const data = await res.json();
+        if (!data.active) return;
+        renderStatus(data.members);
+      } catch (e) {}
+    }
+
+    function renderStatus(members) {
+      const container = document.getElementById('circle-status');
+      container.style.display = 'block';
+
+      const ok = members.filter(m => m.status === 'ok');
+      const trouble = members.filter(m => m.status === 'trouble');
+      const unknown = members.filter(m => m.status === 'unknown');
+
+      document.getElementById('summary').innerHTML =
+        `<span class="s-ok">${ok.length} OK</span>` +
+        `<span class="s-trouble">${trouble.length} Trouble</span>` +
+        `<span class="s-missing">${unknown.length} Missing</span>`;
+
+      const sorted = [...trouble, ...unknown, ...ok];
+      document.getElementById('member-list').innerHTML = sorted.map(m => {
+        const icon = m.status === 'ok' ? '✅' : m.status === 'trouble' ? '🔴' : '⚫';
+        const time = m.time ? new Date(m.time).toLocaleTimeString() : '';
+        return `<div class="member-row ${m.status}">
+          <span class="member-icon">${icon}</span>
+          <span class="member-name">${m.name}</span>
+          <span class="member-time">${time}</span>
+        </div>`;
+      }).join('');
     }
 
     function showError(msg) {
