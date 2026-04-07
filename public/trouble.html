@@ -38,9 +38,9 @@
         });
         if (res.ok) {
           document.querySelector('.text').textContent = 'Trouble Reported';
-          document.getElementById('status').textContent = 'Your circle has been notified';
+          document.getElementById('status').textContent = 'Your circle has been notified — you can close this page';
           if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-          setTimeout(() => window.close(), 2000);
+          setTimeout(() => { window.close(); }, 1500);
         } else {
           const err = await res.json();
           if (err.error === 'No active check-in event') {

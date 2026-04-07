@@ -38,9 +38,10 @@
         });
         if (res.ok) {
           document.querySelector('.text').textContent = "You're OK";
-          document.getElementById('status').textContent = 'Status reported successfully';
+          document.getElementById('status').textContent = 'You can close this page';
           if (navigator.vibrate) navigator.vibrate(200);
-          setTimeout(() => window.close(), 2000);
+          // Try to close (works on Android, not Safari)
+          setTimeout(() => { window.close(); }, 1500);
         } else {
           const err = await res.json();
           if (err.error === 'No active check-in event') {
