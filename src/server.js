@@ -1,3 +1,11 @@
+// Prevent unhandled errors from crashing the server
+process.on('uncaughtException', (err) => {
+  console.error('[CRASH PREVENTED] Uncaught exception:', err.message);
+});
+process.on('unhandledRejection', (err) => {
+  console.error('[CRASH PREVENTED] Unhandled rejection:', err.message || err);
+});
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');

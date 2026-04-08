@@ -5,34 +5,44 @@ const OREF_URL = 'https://www.oref.org.il/WarningMessages/alert/alerts.json';
 const POLL_INTERVAL = 3000; // 3 seconds
 
 // Track which circles already have an auto-triggered active event
-// to avoid creating duplicate events for the same alert wave
 const recentlyTriggered = new Map(); // circleId -> timestamp
+let consecutiveErrors = 0;
 
 async function fetchAlert() {
   try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
     const res = await fetch(OREF_URL, {
       headers: {
         'Referer': 'https://www.oref.org.il/',
         'User-Agent': 'Mozilla/5.0',
         'X-Requested-With': 'XMLHttpRequest',
       },
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
+
     const text = await res.text();
+    consecutiveErrors = 0;
     if (!text || text.trim() === '') return null;
     return JSON.parse(text);
   } catch (e) {
+    consecutiveErrors++;
+    if (consecutiveErrors % 20 === 1) {
+      console.error(`[OREF] Fetch error (${consecutiveErrors}x):`, e.message);
+    }
     return null;
   }
 }
 
 async function checkAndTrigger() {
-  const alert = await fetchAlert();
-  if (!alert || !alert.data || alert.data.length === 0) return;
-
-  const alertAreas = alert.data; // Array of city/area names in Hebrew
-
-  // Get all circles that have members in the alerted areas
   try {
+    const alert = await fetchAlert();
+    if (!alert || !alert.data || alert.data.length === 0) return;
+
+    const alertAreas = alert.data;
+
     const { rows: members } = await pool.query(
       "SELECT DISTINCT circle_id, area FROM members WHERE area != ''"
     );
@@ -51,11 +61,9 @@ async function checkAndTrigger() {
       );
 
       if (match) {
-        // Don't re-trigger if we triggered this circle in the last 5 minutes
         const lastTriggered = recentlyTriggered.get(circleId);
         if (lastTriggered && Date.now() - lastTriggered < 5 * 60 * 1000) continue;
 
-        // Check if there's already an active event
         const { rows: active } = await pool.query(
           'SELECT id FROM events WHERE circle_id = $1 AND active = true', [circleId]
         );
@@ -64,7 +72,6 @@ async function checkAndTrigger() {
           continue;
         }
 
-        // Auto-trigger a check-in event with the areas that triggered it
         const eventId = uuidv4();
         await pool.query(
           'INSERT INTO events (id, circle_id, triggered_areas) VALUES ($1, $2, $3)',
@@ -75,14 +82,13 @@ async function checkAndTrigger() {
       }
     }
   } catch (e) {
-    console.error('[OREF] Error checking circles:', e.message);
+    console.error('[OREF] Error in checkAndTrigger:', e.message);
   }
 }
 
 function start() {
   console.log('[OREF] Pikud HaOref poller started (every 3s)');
   setInterval(checkAndTrigger, POLL_INTERVAL);
-  // Run immediately on start
   checkAndTrigger();
 }
 
